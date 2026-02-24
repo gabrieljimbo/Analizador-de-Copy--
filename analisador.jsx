@@ -22,7 +22,7 @@
  *   variacoes: [
  *     {
  *       titulo: "Variação 1 — Urgência",
- *       copy: "Texto reescrito...",
+ *       copy: "Texto reescrito...", 
  *       justificativa: "Por que essa versão é melhor..."
  *     },
  *     { titulo, copy, justificativa },  // quantas o n8n quiser
