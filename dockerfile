@@ -1,17 +1,20 @@
-# Build
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
+
 WORKDIR /app
 
-COPY package*.json ./
+# copia somente o projeto real
+COPY analisador-copy/package*.json ./
 
-# se tiver package-lock.json, prefira npm ci (mais estável)
 RUN npm ci --no-audit --no-fund
 
-COPY . .
+COPY analisador-copy/ .
+
 RUN npm run build
 
-# Serve
+
 FROM nginx:alpine
+
 COPY --from=builder /app/dist /usr/share/nginx/html
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
