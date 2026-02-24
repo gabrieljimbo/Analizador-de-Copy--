@@ -35,7 +35,7 @@ const N8N_TIMEOUT_MS = 120000; // 120s
 const N8N_MAX_RETRIES = 2;
 
 // ============================================================
-// ESTILOS GLOBAIS
+// ESTILOS GLOBAIS (✅ RESPONSIVO MOBILE/TABLET/DESKTOP)
 // ============================================================
 const styles = `
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
@@ -56,42 +56,79 @@ const styles = `
   --purple: #b06aff;
 }
 
-body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+html, body { height: 100%; }
+body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+img, svg { max-width: 100%; height: auto; }
+button, input, select, textarea { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
 
 .grain {
   position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-.container { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+/* ✅ container adaptativo (mobile safe + desktop confortável) */
+.container {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 3.5vw, 48px) clamp(14px, 3vw, 24px);
+}
 
 /* ✅ CENTRALIZA HEADER */
 .header{
-  margin-bottom:56px;
+  margin-bottom: clamp(28px, 5vw, 56px);
   text-align:center;
   display:flex;
   flex-direction:column;
   align-items:center;
 }
-.subtitle { margin-top: 16px; color: var(--muted); font-size: 16px; max-width: 520px; line-height: 1.6; text-align:center; margin-left:auto; margin-right:auto; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255,77,0,0.1); border: 1px solid rgba(255,77,0,0.3);
   color: var(--accent2); font-family: 'DM Mono', monospace;
   font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
-  padding: 6px 12px; border-radius: 4px; margin-bottom: 20px;
+  padding: 6px 12px; border-radius: 4px; margin-bottom: 18px;
 }
 .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; }
+h1 {
+  font-size: clamp(30px, 6vw, 64px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
 h1 span { background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+.subtitle {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: clamp(14px, 2.2vw, 16px);
+  max-width: 520px;
+  line-height: 1.65;
+  text-align:center;
+  margin-left:auto;
+  margin-right:auto;
+  text-wrap: pretty;
+}
 
 /* ── TOGGLE DE FORMATO ── */
 .format-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.format-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-.format-btn { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: left; }
+.format-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.format-btn {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  min-height: 72px; /* ✅ touch-friendly */
+}
 .format-btn:hover { border-color: rgba(255,77,0,0.3); }
 .format-btn.active { border-color: var(--accent); background: rgba(255,77,0,0.06); }
 .format-btn-top { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
@@ -99,45 +136,128 @@ h1 span { background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 1
 .format-btn-desc { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.5; }
 
 /* ── INPUT ── */
-.input-section { margin-bottom: 24px; }
-.input-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.input-section { margin-bottom: 22px; }
+.input-label {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
 .char-count { color: var(--accent2); }
-textarea { width: 100%; min-height: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 14px; line-height: 1.7; resize: vertical; outline: none; transition: border-color 0.2s; }
+
+textarea {
+  width: 100%;
+  min-height: clamp(170px, 26vh, 260px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
 textarea:focus { border-color: rgba(255,77,0,0.4); }
 textarea::placeholder { color: var(--muted); }
 
-/* ── CONFIG ROW (3 colunas) ── */
-.config-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-.config-field label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-.config-field select { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; appearance: none; cursor: pointer; }
+/* ── CONFIG ROW ── */
+.config-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.config-field label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.config-field select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+  cursor: pointer;
+  min-height: 44px; /* ✅ touch-friendly */
+}
 .config-field select:focus { border-color: rgba(255,77,0,0.4); }
 
 /* ── BOTÃO ── */
-.btn { width: 100%; padding: 18px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn {
+  width: 100%;
+  padding: 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px; /* ✅ */
+}
 .btn:hover:not(:disabled) { background: #ff6620; transform: translateY(-1px); box-shadow: 0 8px 32px rgba(255,77,0,0.3); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .loading-bar { position: absolute; bottom: 0; left: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent); animation: loading 1.5s infinite; }
 @keyframes loading { 0%{left:-60%;width:60%} 100%{left:100%;width:60%} }
 
 /* ── ABAS DE RESULTADO ── */
-.results { margin-top: 48px; animation: fadeUp 0.5s ease; }
+.results { margin-top: 44px; animation: fadeUp 0.5s ease; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
+/* ✅ tabs responsivas (wrap no mobile) */
 .tabs-bar {
-  display: flex; gap: 4px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 28px;
+  padding: 6px;
+  margin-bottom: 22px;
 }
 
 .tab-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 16px; border-radius: 9px; border: none; cursor: pointer;
-  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
-  color: var(--muted); background: transparent; transition: all 0.2s;
+  flex: 1 1 240px; /* ✅ quebra em 2 linhas no mobile */
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  transition: all 0.2s;
   position: relative;
+  min-height: 44px;
 }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 8px rgba(0,0,0,0.4); }
@@ -148,27 +268,42 @@ textarea::placeholder { color: var(--muted); }
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; padding: 0 6px;
   border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 600;
+  white-space: nowrap;
 }
 .tab-analise .tab-badge { background: rgba(255,77,0,0.15); color: var(--accent2); }
 .tab-n8n .tab-badge { background: rgba(176,106,255,0.15); color: var(--purple); }
 .tab-badge.pending { background: rgba(107,104,130,0.2); color: var(--muted); }
 
 /* ── SCORE HERO ── */
-.score-hero { display: flex; align-items: center; gap: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; margin-bottom: 24px; position: relative; overflow: hidden; }
+.score-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: clamp(18px, 3vw, 32px);
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+}
 .score-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 .score-circle { width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid; flex-shrink: 0; }
 .score-number { font-size: 32px; font-weight: 800; line-height: 1; }
 .score-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
-.score-info h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+
+.score-info { min-width: 0; }
+.score-info h2 { font-size: clamp(18px, 2.8vw, 22px); font-weight: 700; margin-bottom: 8px; }
 .score-info p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
 .tags-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .verdict-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; }
 .format-tag { padding: 4px 10px; border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; }
 
 /* ── CARDS DE MÉTRICAS ── */
 .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
-.card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .card-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 .card-title { font-size: 13px; font-weight: 600; }
 .card-score { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
@@ -201,15 +336,20 @@ textarea::placeholder { color: var(--muted); }
 .variacao-card:hover { border-color: rgba(176,106,255,0.3); }
 
 .variacao-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--border);
   background: rgba(176,106,255,0.04);
+  flex-wrap: wrap; /* ✅ quebra no mobile */
 }
 
 .variacao-titulo {
   display: flex; align-items: center; gap: 10px;
   font-size: 14px; font-weight: 600; color: var(--purple);
+  min-width: 0;
 }
 
 .variacao-num {
@@ -222,23 +362,26 @@ textarea::placeholder { color: var(--muted); }
 
 .copy-variacao-btn {
   background: rgba(176,106,255,0.1); border: 1px solid rgba(176,106,255,0.2);
-  color: var(--purple); padding: 5px 12px; border-radius: 6px;
-  font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s;
+  color: var(--purple); padding: 8px 12px; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  cursor: pointer; transition: all 0.2s;
+  min-height: 38px;
 }
 .copy-variacao-btn:hover { background: rgba(176,106,255,0.2); }
 
-.variacao-body { padding: 20px; }
+.variacao-body { padding: 18px; }
 
 .variacao-copy {
   background: rgba(176,106,255,0.04);
   border: 1px solid rgba(176,106,255,0.12);
   border-left: 3px solid var(--purple);
   border-radius: 8px;
-  padding: 16px 18px;
+  padding: 14px 14px;
   font-family: 'DM Mono', monospace;
   font-size: 13px; color: var(--text); line-height: 1.8;
   margin-bottom: 14px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* ✅ não estoura */
 }
 
 .variacao-justificativa {
@@ -248,18 +391,23 @@ textarea::placeholder { color: var(--muted); }
 
 .n8n-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 64px 32px; text-align: center;
-  border: 1px dashed var(--border); border-radius: 16px;
+  padding: clamp(36px, 6vw, 64px) clamp(18px, 4vw, 32px);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
 }
 .n8n-empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .n8n-empty-title { font-size: 16px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
 .n8n-empty-desc { font-size: 13px; color: var(--muted); opacity: 0.6; max-width: 420px; line-height: 1.6; }
 
 .n8n-analise-extra {
-  background: var(--surface); border: 1px solid rgba(176,106,255,0.2);
-  border-radius: 14px; padding: 24px; margin-bottom: 24px;
+  background: var(--surface);
+  border: 1px solid rgba(176,106,255,0.2);
+  border-radius: 14px;
+  padding: clamp(16px, 3vw, 24px);
+  margin-bottom: 18px;
 }
-.n8n-analise-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.n8n-analise-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .n8n-analise-title { font-size: 14px; font-weight: 600; color: var(--purple); }
 .n8n-analise-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
 
@@ -270,16 +418,45 @@ textarea::placeholder { color: var(--muted); }
 }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-.divider { height: 1px; background: var(--border); margin: 32px 0; }
-.reset-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 12px 24px; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%; }
+.divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+.reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  min-height: 46px;
+}
 .reset-btn:hover { border-color: var(--accent); color: var(--text); }
 
-@media (max-width: 700px) {
+/* ✅ BREAKPOINT TABLET (até 980px) */
+@media (max-width: 980px) {
   .cards-grid { grid-template-columns: 1fr; }
-  .config-row { grid-template-columns: 1fr; }
+  .config-row { grid-template-columns: 1fr 1fr; }
+  .format-toggle { grid-template-columns: 1fr 1fr; }
+}
+
+/* ✅ BREAKPOINT MOBILE (até 700px) */
+@media (max-width: 700px) {
   .format-toggle { grid-template-columns: 1fr; }
+  .config-row { grid-template-columns: 1fr; }
   .score-hero { flex-direction: column; text-align: center; }
-  .tab-btn { font-size: 12px; padding: 10px 8px; }
+  .score-circle { width: 92px; height: 92px; }
+  .tab-btn { flex: 1 1 100%; } /* ✅ tabs 1 por linha */
+}
+
+/* ✅ EXTRA SMALL (até 380px) */
+@media (max-width: 380px) {
+  .badge { font-size: 10px; }
+  .tab-badge { display: none; } /* ✅ evita esmagar */
+  textarea { padding: 16px; }
+  .card { padding: 18px; }
 }
 `;
 
@@ -336,9 +513,6 @@ async function safeReadJson(response) {
 /**
  * ✅ FIX DO SEU CASO:
  * n8n retorna: [ { output: "```json ... ```" } ]
- * Aqui a gente:
- * 1) pega o primeiro item do array
- * 2) se tiver "output" string, parseia o JSON interno
  */
 function unwrapN8nEnvelope(data) {
     let d = data;
@@ -350,7 +524,6 @@ function unwrapN8nEnvelope(data) {
         try {
             return JSON.parse(clean);
         } catch {
-            // se falhar, devolve o envelope pra debug
             return d;
         }
     }
@@ -375,11 +548,8 @@ function isValidAnalise(obj) {
 
 function normalizeN8nResponse(data) {
     const analise = data?.analise ?? data?.result?.analise ?? data?.data?.analise ?? null;
-
     const variacoes = data?.variacoes ?? data?.result?.variacoes ?? data?.data?.variacoes ?? [];
-
     const analise_extra = data?.analise_extra ?? data?.result?.analise_extra ?? data?.data?.analise_extra ?? null;
-
     return { raw: data, analise, variacoes, analise_extra };
 }
 
@@ -387,33 +557,23 @@ function normalizeN8nResponse(data) {
 // COMPONENTE PRINCIPAL
 // ============================================================
 export default function AnalisadorCopy() {
-    // Inputs do usuário
     const [copy, setCopy] = useState("");
     const [formatoCopy, setFormatoCopy] = useState("landing_page");
     const [nicho, setNicho] = useState("infoproduto");
     const [modelo, setModelo] = useState("low_ticket");
     const [objetivo, setObjetivo] = useState("conversao");
 
-    // Estado dos resultados
     const [loading, setLoading] = useState(false);
     const [analise, setAnalise] = useState(null);
 
-    // guarda o retorno cru (para debug) + normalizado (para UI)
     const [n8nRaw, setN8nRaw] = useState(null);
     const [variacoes, setVariacoes] = useState([]);
     const [analiseExtra, setAnaliseExtra] = useState(null);
 
     const [error, setError] = useState(null);
-
-    // Aba ativa: "analise" | "n8n"
     const [abaAtiva, setAbaAtiva] = useState("analise");
-
-    // Estado de cópia individual por variação
     const [copiedIdx, setCopiedIdx] = useState(null);
 
-    // ============================================================
-    // FUNÇÃO PRINCIPAL: analisar() (N8N ONLY) — TIMEOUT + RETRY
-    // ============================================================
     const analisar = async () => {
         if (!copy.trim()) return;
 
@@ -465,29 +625,21 @@ export default function AnalisadorCopy() {
                         throw new Error(`n8n status ${response.status}. Body: ${fallbackText.slice(0, 300)}`);
                     }
 
-                    // 1) parse do body (pode vir text/plain, markdown, etc.)
                     const data = await safeReadJson(response);
-
-                    // 2) unwrap do envelope do n8n (SEU CASO: array + output)
                     const unwrapped = unwrapN8nEnvelope(data);
 
-                    // Debug completo:
                     setN8nRaw({ envelope: data, parsed: unwrapped });
 
-                    // Se n8n optar por retornar um erro estruturado
                     if (unwrapped?.error?.message) {
                         throw new Error(unwrapped.error.message);
                     }
 
-                    // 3) normaliza para UI
                     const normalized = normalizeN8nResponse(unwrapped);
 
                     setVariacoes(Array.isArray(normalized.variacoes) ? normalized.variacoes : []);
                     setAnaliseExtra(normalized.analise_extra || null);
 
-                    // 4) valida analise
                     if (!isValidAnalise(normalized.analise)) {
-                        // ✅ NÃO TRAVA MAIS A UI: ainda permite ver "Variações N8N"
                         setAnalise(null);
                         setAbaAtiva("n8n");
                         setError(
@@ -496,7 +648,6 @@ export default function AnalisadorCopy() {
                         return;
                     }
 
-                    // ✅ sucesso completo
                     setAnalise(normalized.analise);
                     setAbaAtiva("analise");
                     return;
@@ -530,26 +681,23 @@ export default function AnalisadorCopy() {
         }
     };
 
-    // Copiar texto de uma variação para o clipboard
     const copiarVariacao = (texto, idx) => {
         navigator.clipboard.writeText(texto || "");
         setCopiedIdx(idx);
         setTimeout(() => setCopiedIdx(null), 2000);
     };
 
-    // Cores baseadas em score
     const getScoreColor = (s) => (s >= 75 ? "#00ff87" : s >= 50 ? "#ffd700" : "#ff3d57");
     const getVeredictColor = (v) =>
         ({ Excelente: "#00ff87", Bom: "#00cc6a", Mediano: "#ffd700", Fraco: "#ff3d57" }[v] || "#ffd700");
 
-    const canShowResults = !!analise || !!n8nRaw; // ✅ agora mostra tela mesmo se analise falhar
+    const canShowResults = !!analise || !!n8nRaw;
 
     return (
         <>
             <style>{styles}</style>
             <div className="grain" />
             <div className="container">
-                {/* ── HEADER ── */}
                 <div className="header">
                     <div className="badge">
                         <span className="badge-dot" />
@@ -560,12 +708,9 @@ export default function AnalisadorCopy() {
                         <br />
                         <span>Copy</span> com IA
                     </h1>
-                    <p className="subtitle">
-                        Cole seu anúncio ou mensagem. Diagnóstico completo + variações reescritas pela IA.
-                    </p>
+                    <p className="subtitle">Cole seu anúncio ou mensagem. Diagnóstico completo + variações reescritas pela IA.</p>
                 </div>
 
-                {/* ── TOGGLE DE FORMATO ── */}
                 <div style={{ marginBottom: 24 }}>
                     <div className="format-label">Tipo de copy</div>
                     <div className="format-toggle">
@@ -593,7 +738,6 @@ export default function AnalisadorCopy() {
                     </div>
                 </div>
 
-                {/* ── INPUT DA COPY ── */}
                 <div className="input-section">
                     <div className="input-label">
                         <span>{formatoCopy === "landing_page" ? "Cole sua copy / headline aqui" : "Cole sua mensagem X1 aqui"}</span>
@@ -610,7 +754,6 @@ export default function AnalisadorCopy() {
                     />
                 </div>
 
-                {/* ── CONFIGURAÇÕES ── */}
                 <div className="config-row">
                     <div className="config-field">
                         <label>Nicho</label>
@@ -651,7 +794,6 @@ export default function AnalisadorCopy() {
                     </div>
                 </div>
 
-                {/* ── BOTÃO PRINCIPAL ── */}
                 <button className="btn" onClick={analisar} disabled={loading || !copy.trim()} type="button">
                     {loading && <span className="loading-bar" />}
                     {loading ? "Analisando sua copy..." : "→ Analisar Copy"}
@@ -672,12 +814,10 @@ export default function AnalisadorCopy() {
                     </p>
                 )}
 
-                {/* ── RESULTADOS ── */}
                 {canShowResults && (
                     <div className="results">
                         <div className="divider" />
 
-                        {/* ABAS */}
                         <div className="tabs-bar">
                             <button
                                 className={`tab-btn tab-analise ${abaAtiva === "analise" ? "active" : ""}`}
@@ -704,7 +844,6 @@ export default function AnalisadorCopy() {
                             </button>
                         </div>
 
-                        {/* ABA 1 */}
                         {abaAtiva === "analise" && analise && (
                             <>
                                 <div className="score-hero">
@@ -736,7 +875,6 @@ export default function AnalisadorCopy() {
                                 </div>
 
                                 <div className="cards-grid">
-                                    {/* Clareza */}
                                     <div className="card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(0,150,255,0.1)" }}>🔍</div>
@@ -758,7 +896,6 @@ export default function AnalisadorCopy() {
                                         )}
                                     </div>
 
-                                    {/* Gatilhos */}
                                     <div className="card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(255,77,0,0.1)" }}>⚡</div>
@@ -791,7 +928,6 @@ export default function AnalisadorCopy() {
                                         </div>
                                     </div>
 
-                                    {/* CTA */}
                                     <div className="card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(255,215,0,0.1)" }}>🎯</div>
@@ -814,7 +950,6 @@ export default function AnalisadorCopy() {
                                         )}
                                     </div>
 
-                                    {/* Objeções */}
                                     <div className="card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(0,255,135,0.1)" }}>🛡️</div>
@@ -836,7 +971,6 @@ export default function AnalisadorCopy() {
                                         </div>
                                     </div>
 
-                                    {/* Proposta */}
                                     <div className="card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(150,0,255,0.1)" }}>💎</div>
@@ -858,7 +992,6 @@ export default function AnalisadorCopy() {
                                         )}
                                     </div>
 
-                                    {/* Reescrita */}
                                     <div className="card rewrite-card">
                                         <div className="card-header">
                                             <div className="card-icon" style={{ background: "rgba(255,77,0,0.15)" }}>✍️</div>
@@ -869,7 +1002,6 @@ export default function AnalisadorCopy() {
                                         <p className="rewrite-text">"{analise.reescrita_cta}"</p>
                                     </div>
 
-                                    {/* Pontos */}
                                     <div className="card card-full">
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
                                             <div>
@@ -905,7 +1037,6 @@ export default function AnalisadorCopy() {
                             </>
                         )}
 
-                        {/* ABA 2 */}
                         {abaAtiva === "n8n" && (
                             <>
                                 {!n8nRaw && (
