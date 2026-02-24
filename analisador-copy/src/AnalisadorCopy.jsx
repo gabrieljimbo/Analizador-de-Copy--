@@ -695,7 +695,7 @@ export default function AnalisadorCopy() {
                                 onClick={() => setAbaAtiva("n8n")}
                                 type="button"
                             >
-                                ⚡ Variações N8N
+                                ⚡ Variações
                                 {variacoes.length > 0 ? (
                                     <span className="tab-badge">{variacoes.length} variações</span>
                                 ) : (
