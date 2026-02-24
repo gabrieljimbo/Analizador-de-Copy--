@@ -43,7 +43,7 @@ const N8N_WEBHOOK_URL = "https://webhook.merendinhafeliz.com.br/webhook/analisad
 const N8N_WEBHOOK_TOKEN = "SEU_TOKEN_FORTE_AQUI";
 
 // Timeout para evitar UI travada quando n8n/IA demora
-const N8N_TIMEOUT_MS = 25000;
+const N8N_TIMEOUT_MS = 45000;
 
 // ============================================================
 // ESTILOS GLOBAIS
