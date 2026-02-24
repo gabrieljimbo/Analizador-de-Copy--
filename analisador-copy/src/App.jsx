@@ -1,10 +1,5 @@
-import "./App.css";
-import AnalisadorCopy from "./components/AnalisadorCopy";
+import AnalisadorCopy from "./AnalisadorCopy.jsx";
 
 export default function App() {
-  return (
-    <main>
-      <AnalisadorCopy />
-    </main>
-  );
+  return <AnalisadorCopy />;
 }
