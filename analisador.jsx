@@ -325,23 +325,23 @@ Seja direto, específico e brutalmente honesto.`;
 export default function AnalisadorCopy() {
 
   // Inputs do usuário
-  const [copy, setCopy]             = useState("");
+  const [copy, setCopy] = useState("");
   const [formatoCopy, setFormatoCopy] = useState("landing_page");
-  const [nicho, setNicho]           = useState("infoproduto");
-  const [modelo, setModelo]         = useState("low_ticket"); // modelo de negócio
-  const [objetivo, setObjetivo]     = useState("conversao");
+  const [nicho, setNicho] = useState("infoproduto");
+  const [modelo, setModelo] = useState("low_ticket"); // modelo de negócio
+  const [objetivo, setObjetivo] = useState("conversao");
 
   // Estado dos resultados
-  const [loading, setLoading]       = useState(false);
-  const [analise, setAnalise]       = useState(null);   // resultado da análise (aba 1)
-  const [n8nData, setN8nData]       = useState(null);   // retorno completo do n8n (aba 2)
-  const [error, setError]           = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [analise, setAnalise] = useState(null);   // resultado da análise (aba 1)
+  const [n8nData, setN8nData] = useState(null);   // retorno completo do n8n (aba 2)
+  const [error, setError] = useState(null);
 
   // Aba ativa: "analise" | "n8n"
-  const [abaAtiva, setAbaAtiva]     = useState("analise");
+  const [abaAtiva, setAbaAtiva] = useState("analise");
 
   // Estado de cópia individual por variação
-  const [copiedIdx, setCopiedIdx]   = useState(null);
+  const [copiedIdx, setCopiedIdx] = useState(null);
 
   // ============================================================
   // FUNÇÃO PRINCIPAL: analisar()
@@ -421,9 +421,9 @@ export default function AnalisadorCopy() {
           }),
         });
 
-        const data     = await response.json();
-        const text     = data.content?.[0]?.text || "";
-        const clean    = text.replace(/```json|```/g, "").trim();
+        const data = await response.json();
+        const text = data.content?.[0]?.text || "";
+        const clean = text.replace(/```json|```/g, "").trim();
         setAnalise(JSON.parse(clean));
         // n8nData permanece null → aba 2 exibe estado vazio
       }
@@ -445,10 +445,10 @@ export default function AnalisadorCopy() {
 
   // Cores baseadas em score
   const getScoreColor = (s) => s >= 75 ? "#00ff87" : s >= 50 ? "#ffd700" : "#ff3d57";
-  const getVeredictColor = (v) => ({ Excelente:"#00ff87", Bom:"#00cc6a", Mediano:"#ffd700", Fraco:"#ff3d57" }[v] || "#ffd700");
+  const getVeredictColor = (v) => ({ Excelente: "#00ff87", Bom: "#00cc6a", Mediano: "#ffd700", Fraco: "#ff3d57" }[v] || "#ffd700");
 
   // Quantidade de variações no retorno do n8n
-  const variacoes  = n8nData?.variacoes || [];
+  const variacoes = n8nData?.variacoes || [];
   const analiseExtra = n8nData?.analise_extra || null;
 
   // ============================================================
@@ -557,7 +557,7 @@ export default function AnalisadorCopy() {
         </button>
 
         {error && (
-          <p style={{ color:"#ff3d57", fontFamily:"'DM Mono',monospace", fontSize:13, marginTop:16, textAlign:"center" }}>
+          <p style={{ color: "#ff3d57", fontFamily: "'DM Mono',monospace", fontSize: 13, marginTop: 16, textAlign: "center" }}>
             ⚠ {error}
           </p>
         )}
@@ -607,7 +607,7 @@ export default function AnalisadorCopy() {
                   </div>
                   <div className="score-info">
                     <div className="tags-row">
-                      <div className="verdict-tag" style={{ background:`${getVeredictColor(analise.veredicto)}15`, border:`1px solid ${getVeredictColor(analise.veredicto)}40`, color: getVeredictColor(analise.veredicto) }}>
+                      <div className="verdict-tag" style={{ background: `${getVeredictColor(analise.veredicto)}15`, border: `1px solid ${getVeredictColor(analise.veredicto)}40`, color: getVeredictColor(analise.veredicto) }}>
                         {analise.veredicto}
                       </div>
                       <div className="format-tag">
@@ -625,49 +625,49 @@ export default function AnalisadorCopy() {
                   {/* Clareza */}
                   <div className="card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(0,150,255,0.1)" }}>🔍</div>
+                      <div className="card-icon" style={{ background: "rgba(0,150,255,0.1)" }}>🔍</div>
                       <div>
                         <div className="card-title">Clareza</div>
                         <div className="card-score" style={{ color: getScoreColor(analise.clareza.score) }}>{analise.clareza.score}/100</div>
                       </div>
                     </div>
-                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width:`${analise.clareza.score}%`, background: getScoreColor(analise.clareza.score) }} /></div>
+                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width: `${analise.clareza.score}%`, background: getScoreColor(analise.clareza.score) }} /></div>
                     <p className="card-text">{analise.clareza.analise}</p>
-                    {analise.clareza.sugestao && <p className="card-text" style={{ marginTop:8, color:"#ff8c42", fontStyle:"italic" }}>💡 {analise.clareza.sugestao}</p>}
+                    {analise.clareza.sugestao && <p className="card-text" style={{ marginTop: 8, color: "#ff8c42", fontStyle: "italic" }}>💡 {analise.clareza.sugestao}</p>}
                   </div>
 
                   {/* Gatilhos Emocionais */}
                   <div className="card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(255,77,0,0.1)" }}>⚡</div>
+                      <div className="card-icon" style={{ background: "rgba(255,77,0,0.1)" }}>⚡</div>
                       <div>
                         <div className="card-title">Gatilhos Emocionais</div>
                         <div className="card-score" style={{ color: getScoreColor(analise.gatilhos_emocionais.score) }}>{analise.gatilhos_emocionais.score}/100</div>
                       </div>
                     </div>
-                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width:`${analise.gatilhos_emocionais.score}%`, background: getScoreColor(analise.gatilhos_emocionais.score) }} /></div>
-                    <p className="card-text" style={{ marginBottom:8 }}>{analise.gatilhos_emocionais.analise}</p>
+                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width: `${analise.gatilhos_emocionais.score}%`, background: getScoreColor(analise.gatilhos_emocionais.score) }} /></div>
+                    <p className="card-text" style={{ marginBottom: 8 }}>{analise.gatilhos_emocionais.analise}</p>
                     <div className="tags-list">
-                      {analise.gatilhos_emocionais.encontrados?.map((g,i) => <span key={i} className="tag">✓ {g}</span>)}
-                      {analise.gatilhos_emocionais.ausentes?.map((g,i) => <span key={i} className="tag bad">✗ {g}</span>)}
+                      {analise.gatilhos_emocionais.encontrados?.map((g, i) => <span key={i} className="tag">✓ {g}</span>)}
+                      {analise.gatilhos_emocionais.ausentes?.map((g, i) => <span key={i} className="tag bad">✗ {g}</span>)}
                     </div>
                   </div>
 
                   {/* CTA */}
                   <div className="card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(255,215,0,0.1)" }}>🎯</div>
+                      <div className="card-icon" style={{ background: "rgba(255,215,0,0.1)" }}>🎯</div>
                       <div>
                         <div className="card-title">Call to Action</div>
                         <div className="card-score" style={{ color: getScoreColor(analise.cta.score) }}>{analise.cta.score}/100</div>
                       </div>
                     </div>
-                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width:`${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }} /></div>
+                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width: `${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }} /></div>
                     <p className="card-text">{analise.cta.analise}</p>
                     {analise.cta.sugestao && (
-                      <div className="suggestion-box" style={{ background:"rgba(255,215,0,0.06)", border:"1px solid rgba(255,215,0,0.15)" }}>
-                        <span style={{ fontFamily:"'DM Mono',monospace", fontSize:11, color:"#ffd700" }}>Sugestão: </span>
-                        <span className="card-text" style={{ color:"#ffd700" }}>{analise.cta.sugestao}</span>
+                      <div className="suggestion-box" style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)" }}>
+                        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#ffd700" }}>Sugestão: </span>
+                        <span className="card-text" style={{ color: "#ffd700" }}>{analise.cta.sugestao}</span>
                       </div>
                     )}
                   </div>
@@ -675,38 +675,38 @@ export default function AnalisadorCopy() {
                   {/* Objeções */}
                   <div className="card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(0,255,135,0.1)" }}>🛡️</div>
+                      <div className="card-icon" style={{ background: "rgba(0,255,135,0.1)" }}>🛡️</div>
                       <div>
                         <div className="card-title">Gestão de Objeções</div>
                         <div className="card-score" style={{ color: getScoreColor(analise.objecoes.score) }}>{analise.objecoes.score}/100</div>
                       </div>
                     </div>
-                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width:`${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }} /></div>
-                    <p className="card-text" style={{ marginBottom:8 }}>{analise.objecoes.analise}</p>
+                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width: `${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }} /></div>
+                    <p className="card-text" style={{ marginBottom: 8 }}>{analise.objecoes.analise}</p>
                     <div className="tags-list">
-                      {analise.objecoes.nao_tratadas?.map((o,i) => <span key={i} className="tag bad">⚠ {o}</span>)}
+                      {analise.objecoes.nao_tratadas?.map((o, i) => <span key={i} className="tag bad">⚠ {o}</span>)}
                     </div>
                   </div>
 
                   {/* Proposta de Valor */}
                   <div className="card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(150,0,255,0.1)" }}>💎</div>
+                      <div className="card-icon" style={{ background: "rgba(150,0,255,0.1)" }}>💎</div>
                       <div>
                         <div className="card-title">Proposta de Valor</div>
                         <div className="card-score" style={{ color: getScoreColor(analise.proposta_valor.score) }}>{analise.proposta_valor.score}/100</div>
                       </div>
                     </div>
-                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width:`${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }} /></div>
+                    <div className="mini-bar"><div className="mini-bar-fill" style={{ width: `${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }} /></div>
                     <p className="card-text">{analise.proposta_valor.analise}</p>
-                    {analise.proposta_valor.sugestao && <p className="card-text" style={{ marginTop:8, color:"#cc88ff", fontStyle:"italic" }}>💡 {analise.proposta_valor.sugestao}</p>}
+                    {analise.proposta_valor.sugestao && <p className="card-text" style={{ marginTop: 8, color: "#cc88ff", fontStyle: "italic" }}>💡 {analise.proposta_valor.sugestao}</p>}
                   </div>
 
                   {/* Reescrita / Headline melhorado */}
                   <div className="card rewrite-card">
                     <div className="card-header">
-                      <div className="card-icon" style={{ background:"rgba(255,77,0,0.15)" }}>✍️</div>
-                      <div className="card-title" style={{ color:"#ff8c42" }}>
+                      <div className="card-icon" style={{ background: "rgba(255,77,0,0.15)" }}>✍️</div>
+                      <div className="card-title" style={{ color: "#ff8c42" }}>
                         {formatoCopy === "landing_page" ? "Headline/CTA Melhorado" : "Abertura Melhorada"}
                       </div>
                     </div>
@@ -715,29 +715,29 @@ export default function AnalisadorCopy() {
 
                   {/* Pontos Fortes e Críticos */}
                   <div className="card card-full">
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
                       <div>
                         <div className="card-header">
-                          <div className="card-icon" style={{ background:"rgba(0,255,135,0.1)" }}>✅</div>
+                          <div className="card-icon" style={{ background: "rgba(0,255,135,0.1)" }}>✅</div>
                           <div className="card-title">Pontos Fortes</div>
                         </div>
                         <ul className="list-items">
-                          {analise.pontos_fortes?.map((p,i) => (
+                          {analise.pontos_fortes?.map((p, i) => (
                             <li key={i} className="list-item">
-                              <span className="list-item-icon" style={{ color:"#00ff87" }}>→</span>{p}
+                              <span className="list-item-icon" style={{ color: "#00ff87" }}>→</span>{p}
                             </li>
                           ))}
                         </ul>
                       </div>
                       <div>
                         <div className="card-header">
-                          <div className="card-icon" style={{ background:"rgba(255,61,87,0.1)" }}>⚠️</div>
+                          <div className="card-icon" style={{ background: "rgba(255,61,87,0.1)" }}>⚠️</div>
                           <div className="card-title">Pontos Críticos</div>
                         </div>
                         <ul className="list-items">
-                          {analise.pontos_criticos?.map((p,i) => (
+                          {analise.pontos_criticos?.map((p, i) => (
                             <li key={i} className="list-item">
-                              <span className="list-item-icon" style={{ color:"#ff3d57" }}>→</span>{p}
+                              <span className="list-item-icon" style={{ color: "#ff3d57" }}>→</span>{p}
                             </li>
                           ))}
                         </ul>
@@ -774,7 +774,7 @@ export default function AnalisadorCopy() {
                     {analiseExtra && (
                       <div className="n8n-analise-extra">
                         <div className="n8n-analise-header">
-                          <span style={{ fontSize:18 }}>🧠</span>
+                          <span style={{ fontSize: 18 }}>🧠</span>
                           <div className="n8n-analise-title">Análise Aprofundada</div>
                         </div>
                         <p className="n8n-analise-text">{analiseExtra}</p>
