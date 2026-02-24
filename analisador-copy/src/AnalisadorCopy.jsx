@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * ANALISADOR DE COPY COM IA — v2.2 (N8N ONLY) — TIMEOUT + RETRY
+ * ANALISADOR DE COPY COM IA — v2.3 (N8N ONLY) — ENVELOPE FIX + UI SAFE
  * ============================================================
  *
  * ✅ Puxa 100% do n8n via webhook (sem modo direto).
@@ -9,29 +9,12 @@
  *    - Retry automático quando for AbortError
  *    - fetchWithTimeout centralizado
  *
- * DUAS ABAS DE RESULTADO:
- * 1. "Análise" — diagnóstico retornado pelo n8n (campo: analise)
- * 2. "Variações N8N" — análise extra + variações (campo: variacoes)
+ * ✅ FIX CRÍTICO (SEU CASO):
+ * - n8n pode responder como: [ { output: "```json ...```" } ]
+ * - Faz unwrap desse envelope e parseia o JSON interno
+ * - Se "analise" vier inválida, ainda renderiza a aba "Variações N8N"
+ *   (antes quebrava e não mostrava nada)
  *
- * PAYLOAD ENVIADO AO N8N:
- *   {
- *     schema_version, request_id, timestamp,
- *     formato, nicho, modelo, objetivo, copy_texto
- *   }
- *
- * JSON ESPERADO DE RETORNO DO N8N (via Respond to Webhook):
- * {
- *   analise: { ...schema... },
- *   analise_extra?: "texto opcional",
- *   variacoes: [
- *     { titulo, copy, justificativa }, ...
- *   ],
- *   error?: { message, code, details } // opcional
- * }
- *
- * ✅ FIX PRINCIPAL:
- * - Aceita resposta do n8n como JSON PURO ou vindo "embrulhado" em ```json ... ```
- * - Mesmo que Content-Type venha text/plain
  * ============================================================
  */
 
@@ -45,7 +28,7 @@ const N8N_WEBHOOK_URL = "https://webhook.merendinhafeliz.com.br/webhook/analisad
 // Token simples anti-flood (configure o mesmo valor no n8n)
 const N8N_WEBHOOK_TOKEN = "SEU_TOKEN_FORTE_AQUI";
 
-// ✅ Timeout maior para IA + n8n (era 45000)
+// ✅ Timeout maior para IA + n8n
 const N8N_TIMEOUT_MS = 120000; // 120s
 
 // ✅ Quantas tentativas se der timeout (AbortError)
@@ -81,7 +64,16 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 }
 
 .container { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
-.header { margin-bottom: 56px; }
+
+/* ✅ CENTRALIZA HEADER */
+.header{
+  margin-bottom:56px;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.subtitle { margin-top: 16px; color: var(--muted); font-size: 16px; max-width: 520px; line-height: 1.6; text-align:center; margin-left:auto; margin-right:auto; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -95,7 +87,6 @@ body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text
 
 h1 { font-size: clamp(36px, 6vw, 64px); font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; }
 h1 span { background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.subtitle { margin-top: 16px; color: var(--muted); font-size: 16px; max-width: 520px; line-height: 1.6; }
 
 /* ── TOGGLE DE FORMATO ── */
 .format-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
@@ -318,6 +309,55 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     }
 }
 
+/**
+ * ✅ FIX: lê como texto e tenta parsear JSON mesmo se:
+ * - Content-Type não for application/json
+ * - vier embrulhado em ```json ... ```
+ */
+async function safeReadJson(response) {
+    const raw = await response.text().catch(() => "");
+
+    try {
+        return JSON.parse(raw);
+    } catch { }
+
+    const clean = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+    try {
+        return JSON.parse(clean);
+    } catch {
+        const ct = response.headers.get("content-type") || "";
+        throw new Error(
+            `Resposta inválida do n8n (não parseou JSON). Content-Type: ${ct}. Body: ${raw.slice(0, 300)}`
+        );
+    }
+}
+
+/**
+ * ✅ FIX DO SEU CASO:
+ * n8n retorna: [ { output: "```json ... ```" } ]
+ * Aqui a gente:
+ * 1) pega o primeiro item do array
+ * 2) se tiver "output" string, parseia o JSON interno
+ */
+function unwrapN8nEnvelope(data) {
+    let d = data;
+
+    if (Array.isArray(d)) d = d[0];
+
+    if (d && typeof d === "object" && typeof d.output === "string") {
+        const clean = d.output.replace(/```json/gi, "").replace(/```/g, "").trim();
+        try {
+            return JSON.parse(clean);
+        } catch {
+            // se falhar, devolve o envelope pra debug
+            return d;
+        }
+    }
+
+    return d;
+}
+
 function isValidAnalise(obj) {
     if (!obj || typeof obj !== "object") return false;
     if (typeof obj.score_geral !== "number") return false;
@@ -334,56 +374,13 @@ function isValidAnalise(obj) {
 }
 
 function normalizeN8nResponse(data) {
-    const analise =
-        data?.analise ??
-        data?.result?.analise ??
-        data?.data?.analise ??
-        data?.result ??
-        null;
+    const analise = data?.analise ?? data?.result?.analise ?? data?.data?.analise ?? null;
 
-    const variacoes =
-        data?.variacoes ??
-        data?.result?.variacoes ??
-        data?.data?.variacoes ??
-        [];
+    const variacoes = data?.variacoes ?? data?.result?.variacoes ?? data?.data?.variacoes ?? [];
 
-    const analise_extra =
-        data?.analise_extra ??
-        data?.result?.analise_extra ??
-        data?.data?.analise_extra ??
-        null;
+    const analise_extra = data?.analise_extra ?? data?.result?.analise_extra ?? data?.data?.analise_extra ?? null;
 
     return { raw: data, analise, variacoes, analise_extra };
-}
-
-/**
- * ✅ FIX: lê como texto e tenta parsear JSON mesmo se:
- * - Content-Type não for application/json
- * - vier embrulhado em ```json ... ```
- */
-async function safeReadJson(response) {
-    const raw = await response.text().catch(() => "");
-
-    try {
-        return JSON.parse(raw);
-    } catch { }
-
-    const clean = raw
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
-
-    try {
-        return JSON.parse(clean);
-    } catch {
-        const ct = response.headers.get("content-type") || "";
-        throw new Error(
-            `Resposta inválida do n8n (não parseou JSON). Content-Type: ${ct}. Body: ${raw.slice(
-                0,
-                300
-            )}`
-        );
-    }
 }
 
 // ============================================================
@@ -436,7 +433,7 @@ export default function AnalisadorCopy() {
         const request_id = makeRequestId();
 
         const payload = {
-            schema_version: "2.2",
+            schema_version: "2.3",
             request_id,
             timestamp: new Date().toISOString(),
             formato: formatoCopy,
@@ -461,47 +458,47 @@ export default function AnalisadorCopy() {
 
             for (let attempt = 0; attempt <= N8N_MAX_RETRIES; attempt++) {
                 try {
-                    const response = await fetchWithTimeout(
-                        N8N_WEBHOOK_URL,
-                        options,
-                        N8N_TIMEOUT_MS
-                    );
+                    const response = await fetchWithTimeout(N8N_WEBHOOK_URL, options, N8N_TIMEOUT_MS);
 
                     if (!response.ok) {
                         const fallbackText = await response.text().catch(() => "");
-                        throw new Error(
-                            `n8n status ${response.status}. Body: ${fallbackText.slice(0, 300)}`
-                        );
+                        throw new Error(`n8n status ${response.status}. Body: ${fallbackText.slice(0, 300)}`);
                     }
 
+                    // 1) parse do body (pode vir text/plain, markdown, etc.)
                     const data = await safeReadJson(response);
 
+                    // 2) unwrap do envelope do n8n (SEU CASO: array + output)
+                    const unwrapped = unwrapN8nEnvelope(data);
+
+                    // Debug completo:
+                    setN8nRaw({ envelope: data, parsed: unwrapped });
+
                     // Se n8n optar por retornar um erro estruturado
-                    if (data?.error?.message) {
-                        throw new Error(data.error.message);
+                    if (unwrapped?.error?.message) {
+                        throw new Error(unwrapped.error.message);
                     }
 
-                    const normalized = normalizeN8nResponse(data);
+                    // 3) normaliza para UI
+                    const normalized = normalizeN8nResponse(unwrapped);
 
-                    // guarda cru pra debug
-                    setN8nRaw(normalized.raw);
-
-                    // normalizados para UI
-                    setVariacoes(
-                        Array.isArray(normalized.variacoes) ? normalized.variacoes : []
-                    );
+                    setVariacoes(Array.isArray(normalized.variacoes) ? normalized.variacoes : []);
                     setAnaliseExtra(normalized.analise_extra || null);
 
-                    // Valida e salva análise principal para a aba 1
+                    // 4) valida analise
                     if (!isValidAnalise(normalized.analise)) {
-                        throw new Error(
-                            "O n8n respondeu, mas o campo 'analise' veio inválido ou incompleto (schema)."
+                        // ✅ NÃO TRAVA MAIS A UI: ainda permite ver "Variações N8N"
+                        setAnalise(null);
+                        setAbaAtiva("n8n");
+                        setError(
+                            "⚠ O n8n respondeu, mas o campo 'analise' veio inválido/incompleto (schema). Mesmo assim, estou exibindo as variações/analise extra."
                         );
+                        return;
                     }
 
+                    // ✅ sucesso completo
                     setAnalise(normalized.analise);
-
-                    // ✅ sucesso — sai da função
+                    setAbaAtiva("analise");
                     return;
                 } catch (e) {
                     lastErr = e;
@@ -509,9 +506,7 @@ export default function AnalisadorCopy() {
                     const isAbort = e?.name === "AbortError";
                     const isLast = attempt === N8N_MAX_RETRIES;
 
-                    // Retry APENAS quando for timeout (AbortError)
                     if (isAbort && !isLast) {
-                        // backoff leve
                         await sleep(900 * (attempt + 1));
                         continue;
                     }
@@ -547,6 +542,8 @@ export default function AnalisadorCopy() {
     const getVeredictColor = (v) =>
         ({ Excelente: "#00ff87", Bom: "#00cc6a", Mediano: "#ffd700", Fraco: "#ff3d57" }[v] || "#ffd700");
 
+    const canShowResults = !!analise || !!n8nRaw; // ✅ agora mostra tela mesmo se analise falhar
+
     return (
         <>
             <style>{styles}</style>
@@ -580,9 +577,7 @@ export default function AnalisadorCopy() {
                             <div className="format-btn-top">
                                 <span>🖥️</span> Landing Page
                             </div>
-                            <div className="format-btn-desc">
-                                Anúncio, headline ou copy de página de vendas / captura
-                            </div>
+                            <div className="format-btn-desc">Anúncio, headline ou copy de página de vendas / captura</div>
                         </button>
 
                         <button
@@ -593,9 +588,7 @@ export default function AnalisadorCopy() {
                             <div className="format-btn-top">
                                 <span>💬</span> X1 WhatsApp
                             </div>
-                            <div className="format-btn-desc">
-                                Mensagem individual de abordagem e conversão no WhatsApp
-                            </div>
+                            <div className="format-btn-desc">Mensagem individual de abordagem e conversão no WhatsApp</div>
                         </button>
                     </div>
                 </div>
@@ -603,11 +596,7 @@ export default function AnalisadorCopy() {
                 {/* ── INPUT DA COPY ── */}
                 <div className="input-section">
                     <div className="input-label">
-                        <span>
-                            {formatoCopy === "landing_page"
-                                ? "Cole sua copy / headline aqui"
-                                : "Cole sua mensagem X1 aqui"}
-                        </span>
+                        <span>{formatoCopy === "landing_page" ? "Cole sua copy / headline aqui" : "Cole sua mensagem X1 aqui"}</span>
                         <span className="char-count">{copy.length} caracteres</span>
                     </div>
                     <textarea
@@ -676,14 +665,15 @@ export default function AnalisadorCopy() {
                             fontSize: 13,
                             marginTop: 16,
                             textAlign: "center",
+                            whiteSpace: "pre-wrap",
                         }}
                     >
-                        ⚠ {error}
+                        {error}
                     </p>
                 )}
 
                 {/* ── RESULTADOS ── */}
-                {analise && (
+                {canShowResults && (
                     <div className="results">
                         <div className="divider" />
 
@@ -693,9 +683,11 @@ export default function AnalisadorCopy() {
                                 className={`tab-btn tab-analise ${abaAtiva === "analise" ? "active" : ""}`}
                                 onClick={() => setAbaAtiva("analise")}
                                 type="button"
+                                disabled={!analise}
+                                style={!analise ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
                             >
                                 🔎 Análise
-                                <span className="tab-badge">Score {analise.score_geral}</span>
+                                <span className="tab-badge">{analise ? `Score ${analise.score_geral}` : "indisponível"}</span>
                             </button>
 
                             <button
@@ -713,15 +705,12 @@ export default function AnalisadorCopy() {
                         </div>
 
                         {/* ABA 1 */}
-                        {abaAtiva === "analise" && (
+                        {abaAtiva === "analise" && analise && (
                             <>
                                 <div className="score-hero">
                                     <div
                                         className="score-circle"
-                                        style={{
-                                            borderColor: getScoreColor(analise.score_geral),
-                                            color: getScoreColor(analise.score_geral),
-                                        }}
+                                        style={{ borderColor: getScoreColor(analise.score_geral), color: getScoreColor(analise.score_geral) }}
                                     >
                                         <span className="score-number">{analise.score_geral}</span>
                                         <span className="score-label">Score</span>
@@ -739,9 +728,7 @@ export default function AnalisadorCopy() {
                                             >
                                                 {analise.veredicto}
                                             </div>
-                                            <div className="format-tag">
-                                                {formatoCopy === "landing_page" ? "🖥️ Landing Page" : "💬 X1 WhatsApp"}
-                                            </div>
+                                            <div className="format-tag">{formatoCopy === "landing_page" ? "🖥️ Landing Page" : "💬 X1 WhatsApp"}</div>
                                         </div>
                                         <h2>Diagnóstico Geral</h2>
                                         <p>{analise.resumo}</p>
@@ -761,13 +748,7 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div
-                                                className="mini-bar-fill"
-                                                style={{
-                                                    width: `${analise.clareza.score}%`,
-                                                    background: getScoreColor(analise.clareza.score),
-                                                }}
-                                            />
+                                            <div className="mini-bar-fill" style={{ width: `${analise.clareza.score}%`, background: getScoreColor(analise.clareza.score) }} />
                                         </div>
                                         <p className="card-text">{analise.clareza.analise}</p>
                                         {analise.clareza.sugestao && (
@@ -822,23 +803,13 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div
-                                                className="mini-bar-fill"
-                                                style={{ width: `${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }}
-                                            />
+                                            <div className="mini-bar-fill" style={{ width: `${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }} />
                                         </div>
                                         <p className="card-text">{analise.cta.analise}</p>
                                         {analise.cta.sugestao && (
-                                            <div
-                                                className="suggestion-box"
-                                                style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)" }}
-                                            >
-                                                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#ffd700" }}>
-                                                    Sugestão:{" "}
-                                                </span>
-                                                <span className="card-text" style={{ color: "#ffd700" }}>
-                                                    {analise.cta.sugestao}
-                                                </span>
+                                            <div className="suggestion-box" style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)" }}>
+                                                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#ffd700" }}>Sugestão: </span>
+                                                <span className="card-text" style={{ color: "#ffd700" }}>{analise.cta.sugestao}</span>
                                             </div>
                                         )}
                                     </div>
@@ -855,10 +826,7 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div
-                                                className="mini-bar-fill"
-                                                style={{ width: `${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }}
-                                            />
+                                            <div className="mini-bar-fill" style={{ width: `${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }} />
                                         </div>
                                         <p className="card-text" style={{ marginBottom: 8 }}>{analise.objecoes.analise}</p>
                                         <div className="tags-list">
@@ -880,10 +848,7 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div
-                                                className="mini-bar-fill"
-                                                style={{ width: `${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }}
-                                            />
+                                            <div className="mini-bar-fill" style={{ width: `${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }} />
                                         </div>
                                         <p className="card-text">{analise.proposta_valor.analise}</p>
                                         {analise.proposta_valor.sugestao && (
@@ -947,9 +912,7 @@ export default function AnalisadorCopy() {
                                     <div className="n8n-empty">
                                         <div className="n8n-empty-icon">⚡</div>
                                         <div className="n8n-empty-title">Variações não disponíveis</div>
-                                        <div className="n8n-empty-desc">
-                                            Rode uma análise para o n8n retornar as variações no campo <b>variacoes</b>.
-                                        </div>
+                                        <div className="n8n-empty-desc">Rode uma análise para o n8n retornar as variações no campo <b>variacoes</b>.</div>
                                     </div>
                                 )}
 
@@ -978,11 +941,7 @@ export default function AnalisadorCopy() {
                                                                 <span className="variacao-num">{idx + 1}</span>
                                                                 {v?.titulo || `Variação ${idx + 1}`}
                                                             </div>
-                                                            <button
-                                                                className="copy-variacao-btn"
-                                                                onClick={() => copiarVariacao(v?.copy || "", idx)}
-                                                                type="button"
-                                                            >
+                                                            <button className="copy-variacao-btn" onClick={() => copiarVariacao(v?.copy || "", idx)} type="button">
                                                                 {copiedIdx === idx ? "✓ Copiado!" : "Copiar copy"}
                                                             </button>
                                                         </div>
