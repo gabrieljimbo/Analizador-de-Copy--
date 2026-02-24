@@ -1,12 +1,15 @@
 /**
  * ============================================================
- * ANALISADOR DE COPY COM IA — v2.1 (N8N ONLY) — FIXED
+ * ANALISADOR DE COPY COM IA — v2.2 (N8N ONLY) — TIMEOUT + RETRY
  * ============================================================
  *
  * ✅ Puxa 100% do n8n via webhook (sem modo direto).
+ * ✅ Corrige AbortError (timeout) com:
+ *    - Timeout maior
+ *    - Retry automático quando for AbortError
+ *    - fetchWithTimeout centralizado
  *
  * DUAS ABAS DE RESULTADO:
- * -----------------------
  * 1. "Análise" — diagnóstico retornado pelo n8n (campo: analise)
  * 2. "Variações N8N" — análise extra + variações (campo: variacoes)
  *
@@ -42,8 +45,11 @@ const N8N_WEBHOOK_URL = "https://webhook.merendinhafeliz.com.br/webhook/analisad
 // Token simples anti-flood (configure o mesmo valor no n8n)
 const N8N_WEBHOOK_TOKEN = "SEU_TOKEN_FORTE_AQUI";
 
-// Timeout para evitar UI travada quando n8n/IA demora
-const N8N_TIMEOUT_MS = 45000;
+// ✅ Timeout maior para IA + n8n (era 45000)
+const N8N_TIMEOUT_MS = 120000; // 120s
+
+// ✅ Quantas tentativas se der timeout (AbortError)
+const N8N_MAX_RETRIES = 2;
 
 // ============================================================
 // ESTILOS GLOBAIS
@@ -293,12 +299,30 @@ function makeRequestId() {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * ✅ fetch com timeout (centralizado)
+ */
+async function fetchWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        return res;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 function isValidAnalise(obj) {
     if (!obj || typeof obj !== "object") return false;
     if (typeof obj.score_geral !== "number") return false;
     if (typeof obj.veredicto !== "string") return false;
 
-    // Campos que sua UI acessa direto (evita crash)
     const ok =
         obj.clareza?.score != null &&
         obj.gatilhos_emocionais?.score != null &&
@@ -340,12 +364,10 @@ function normalizeN8nResponse(data) {
 async function safeReadJson(response) {
     const raw = await response.text().catch(() => "");
 
-    // tenta JSON direto
     try {
         return JSON.parse(raw);
     } catch { }
 
-    // tenta limpar ```json ... ```
     const clean = raw
         .replace(/```json/gi, "")
         .replace(/```/g, "")
@@ -353,10 +375,13 @@ async function safeReadJson(response) {
 
     try {
         return JSON.parse(clean);
-    } catch (err) {
+    } catch {
         const ct = response.headers.get("content-type") || "";
         throw new Error(
-            `Resposta inválida do n8n (não parseou JSON). Content-Type: ${ct}. Body: ${raw.slice(0, 300)}`
+            `Resposta inválida do n8n (não parseou JSON). Content-Type: ${ct}. Body: ${raw.slice(
+                0,
+                300
+            )}`
         );
     }
 }
@@ -390,7 +415,7 @@ export default function AnalisadorCopy() {
     const [copiedIdx, setCopiedIdx] = useState(null);
 
     // ============================================================
-    // FUNÇÃO PRINCIPAL: analisar() (N8N ONLY)
+    // FUNÇÃO PRINCIPAL: analisar() (N8N ONLY) — TIMEOUT + RETRY
     // ============================================================
     const analisar = async () => {
         if (!copy.trim()) return;
@@ -411,7 +436,7 @@ export default function AnalisadorCopy() {
         const request_id = makeRequestId();
 
         const payload = {
-            schema_version: "2.1",
+            schema_version: "2.2",
             request_id,
             timestamp: new Date().toISOString(),
             formato: formatoCopy,
@@ -421,59 +446,91 @@ export default function AnalisadorCopy() {
             copy_texto: copy,
         };
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), N8N_TIMEOUT_MS);
+        const options = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-webhook-token": N8N_WEBHOOK_TOKEN || "",
+                "x-request-id": request_id,
+            },
+            body: JSON.stringify(payload),
+        };
 
         try {
-            const response = await fetch(N8N_WEBHOOK_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-webhook-token": N8N_WEBHOOK_TOKEN || "",
-                    "x-request-id": request_id,
-                },
-                body: JSON.stringify(payload),
-                signal: controller.signal,
-            });
+            let lastErr;
 
-            if (!response.ok) {
-                const fallbackText = await response.text().catch(() => "");
-                throw new Error(`n8n status ${response.status}. Body: ${fallbackText.slice(0, 300)}`);
+            for (let attempt = 0; attempt <= N8N_MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetchWithTimeout(
+                        N8N_WEBHOOK_URL,
+                        options,
+                        N8N_TIMEOUT_MS
+                    );
+
+                    if (!response.ok) {
+                        const fallbackText = await response.text().catch(() => "");
+                        throw new Error(
+                            `n8n status ${response.status}. Body: ${fallbackText.slice(0, 300)}`
+                        );
+                    }
+
+                    const data = await safeReadJson(response);
+
+                    // Se n8n optar por retornar um erro estruturado
+                    if (data?.error?.message) {
+                        throw new Error(data.error.message);
+                    }
+
+                    const normalized = normalizeN8nResponse(data);
+
+                    // guarda cru pra debug
+                    setN8nRaw(normalized.raw);
+
+                    // normalizados para UI
+                    setVariacoes(
+                        Array.isArray(normalized.variacoes) ? normalized.variacoes : []
+                    );
+                    setAnaliseExtra(normalized.analise_extra || null);
+
+                    // Valida e salva análise principal para a aba 1
+                    if (!isValidAnalise(normalized.analise)) {
+                        throw new Error(
+                            "O n8n respondeu, mas o campo 'analise' veio inválido ou incompleto (schema)."
+                        );
+                    }
+
+                    setAnalise(normalized.analise);
+
+                    // ✅ sucesso — sai da função
+                    return;
+                } catch (e) {
+                    lastErr = e;
+
+                    const isAbort = e?.name === "AbortError";
+                    const isLast = attempt === N8N_MAX_RETRIES;
+
+                    // Retry APENAS quando for timeout (AbortError)
+                    if (isAbort && !isLast) {
+                        // backoff leve
+                        await sleep(900 * (attempt + 1));
+                        continue;
+                    }
+
+                    throw e;
+                }
             }
 
-            const data = await safeReadJson(response);
-
-            // Se n8n optar por retornar um erro estruturado
-            if (data?.error?.message) {
-                throw new Error(data.error.message);
-            }
-
-            const normalized = normalizeN8nResponse(data);
-
-            // guarda cru pra debug
-            setN8nRaw(normalized.raw);
-
-            // normalizados para UI
-            setVariacoes(Array.isArray(normalized.variacoes) ? normalized.variacoes : []);
-            setAnaliseExtra(normalized.analise_extra || null);
-
-            // Valida e salva análise principal para a aba 1
-            if (!isValidAnalise(normalized.analise)) {
-                throw new Error("O n8n respondeu, mas o campo 'analise' veio inválido ou incompleto (schema).");
-            }
-
-            setAnalise(normalized.analise);
+            throw lastErr;
         } catch (e) {
             console.error("Erro na análise (n8n):", e);
 
             const msg =
                 e?.name === "AbortError"
                     ? "Tempo esgotado. O n8n demorou demais para responder."
-                    : (e?.message || "Não foi possível analisar a copy. Tente novamente.");
+                    : e?.message || "Não foi possível analisar a copy. Tente novamente.";
 
             setError(msg);
         } finally {
-            clearTimeout(timeout);
             setLoading(false);
         }
     };
@@ -506,7 +563,9 @@ export default function AnalisadorCopy() {
                         <br />
                         <span>Copy</span> com IA
                     </h1>
-                    <p className="subtitle">Cole seu anúncio ou mensagem. Diagnóstico completo + variações reescritas pela IA.</p>
+                    <p className="subtitle">
+                        Cole seu anúncio ou mensagem. Diagnóstico completo + variações reescritas pela IA.
+                    </p>
                 </div>
 
                 {/* ── TOGGLE DE FORMATO ── */}
@@ -521,7 +580,9 @@ export default function AnalisadorCopy() {
                             <div className="format-btn-top">
                                 <span>🖥️</span> Landing Page
                             </div>
-                            <div className="format-btn-desc">Anúncio, headline ou copy de página de vendas / captura</div>
+                            <div className="format-btn-desc">
+                                Anúncio, headline ou copy de página de vendas / captura
+                            </div>
                         </button>
 
                         <button
@@ -532,7 +593,9 @@ export default function AnalisadorCopy() {
                             <div className="format-btn-top">
                                 <span>💬</span> X1 WhatsApp
                             </div>
-                            <div className="format-btn-desc">Mensagem individual de abordagem e conversão no WhatsApp</div>
+                            <div className="format-btn-desc">
+                                Mensagem individual de abordagem e conversão no WhatsApp
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -540,7 +603,11 @@ export default function AnalisadorCopy() {
                 {/* ── INPUT DA COPY ── */}
                 <div className="input-section">
                     <div className="input-label">
-                        <span>{formatoCopy === "landing_page" ? "Cole sua copy / headline aqui" : "Cole sua mensagem X1 aqui"}</span>
+                        <span>
+                            {formatoCopy === "landing_page"
+                                ? "Cole sua copy / headline aqui"
+                                : "Cole sua mensagem X1 aqui"}
+                        </span>
                         <span className="char-count">{copy.length} caracteres</span>
                     </div>
                     <textarea
@@ -602,7 +669,15 @@ export default function AnalisadorCopy() {
                 </button>
 
                 {error && (
-                    <p style={{ color: "#ff3d57", fontFamily: "'DM Mono',monospace", fontSize: 13, marginTop: 16, textAlign: "center" }}>
+                    <p
+                        style={{
+                            color: "#ff3d57",
+                            fontFamily: "'DM Mono',monospace",
+                            fontSize: 13,
+                            marginTop: 16,
+                            textAlign: "center",
+                        }}
+                    >
                         ⚠ {error}
                     </p>
                 )}
@@ -643,7 +718,10 @@ export default function AnalisadorCopy() {
                                 <div className="score-hero">
                                     <div
                                         className="score-circle"
-                                        style={{ borderColor: getScoreColor(analise.score_geral), color: getScoreColor(analise.score_geral) }}
+                                        style={{
+                                            borderColor: getScoreColor(analise.score_geral),
+                                            color: getScoreColor(analise.score_geral),
+                                        }}
                                     >
                                         <span className="score-number">{analise.score_geral}</span>
                                         <span className="score-label">Score</span>
@@ -661,7 +739,9 @@ export default function AnalisadorCopy() {
                                             >
                                                 {analise.veredicto}
                                             </div>
-                                            <div className="format-tag">{formatoCopy === "landing_page" ? "🖥️ Landing Page" : "💬 X1 WhatsApp"}</div>
+                                            <div className="format-tag">
+                                                {formatoCopy === "landing_page" ? "🖥️ Landing Page" : "💬 X1 WhatsApp"}
+                                            </div>
                                         </div>
                                         <h2>Diagnóstico Geral</h2>
                                         <p>{analise.resumo}</p>
@@ -681,7 +761,13 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div className="mini-bar-fill" style={{ width: `${analise.clareza.score}%`, background: getScoreColor(analise.clareza.score) }} />
+                                            <div
+                                                className="mini-bar-fill"
+                                                style={{
+                                                    width: `${analise.clareza.score}%`,
+                                                    background: getScoreColor(analise.clareza.score),
+                                                }}
+                                            />
                                         </div>
                                         <p className="card-text">{analise.clareza.analise}</p>
                                         {analise.clareza.sugestao && (
@@ -736,13 +822,23 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div className="mini-bar-fill" style={{ width: `${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }} />
+                                            <div
+                                                className="mini-bar-fill"
+                                                style={{ width: `${analise.cta.score}%`, background: getScoreColor(analise.cta.score) }}
+                                            />
                                         </div>
                                         <p className="card-text">{analise.cta.analise}</p>
                                         {analise.cta.sugestao && (
-                                            <div className="suggestion-box" style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)" }}>
-                                                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#ffd700" }}>Sugestão: </span>
-                                                <span className="card-text" style={{ color: "#ffd700" }}>{analise.cta.sugestao}</span>
+                                            <div
+                                                className="suggestion-box"
+                                                style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)" }}
+                                            >
+                                                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#ffd700" }}>
+                                                    Sugestão:{" "}
+                                                </span>
+                                                <span className="card-text" style={{ color: "#ffd700" }}>
+                                                    {analise.cta.sugestao}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -759,7 +855,10 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div className="mini-bar-fill" style={{ width: `${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }} />
+                                            <div
+                                                className="mini-bar-fill"
+                                                style={{ width: `${analise.objecoes.score}%`, background: getScoreColor(analise.objecoes.score) }}
+                                            />
                                         </div>
                                         <p className="card-text" style={{ marginBottom: 8 }}>{analise.objecoes.analise}</p>
                                         <div className="tags-list">
@@ -781,7 +880,10 @@ export default function AnalisadorCopy() {
                                             </div>
                                         </div>
                                         <div className="mini-bar">
-                                            <div className="mini-bar-fill" style={{ width: `${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }} />
+                                            <div
+                                                className="mini-bar-fill"
+                                                style={{ width: `${analise.proposta_valor.score}%`, background: getScoreColor(analise.proposta_valor.score) }}
+                                            />
                                         </div>
                                         <p className="card-text">{analise.proposta_valor.analise}</p>
                                         {analise.proposta_valor.sugestao && (
@@ -845,7 +947,9 @@ export default function AnalisadorCopy() {
                                     <div className="n8n-empty">
                                         <div className="n8n-empty-icon">⚡</div>
                                         <div className="n8n-empty-title">Variações não disponíveis</div>
-                                        <div className="n8n-empty-desc">Rode uma análise para o n8n retornar as variações no campo <b>variacoes</b>.</div>
+                                        <div className="n8n-empty-desc">
+                                            Rode uma análise para o n8n retornar as variações no campo <b>variacoes</b>.
+                                        </div>
                                     </div>
                                 )}
 
@@ -874,7 +978,11 @@ export default function AnalisadorCopy() {
                                                                 <span className="variacao-num">{idx + 1}</span>
                                                                 {v?.titulo || `Variação ${idx + 1}`}
                                                             </div>
-                                                            <button className="copy-variacao-btn" onClick={() => copiarVariacao(v?.copy || "", idx)} type="button">
+                                                            <button
+                                                                className="copy-variacao-btn"
+                                                                onClick={() => copiarVariacao(v?.copy || "", idx)}
+                                                                type="button"
+                                                            >
                                                                 {copiedIdx === idx ? "✓ Copiado!" : "Copiar copy"}
                                                             </button>
                                                         </div>
