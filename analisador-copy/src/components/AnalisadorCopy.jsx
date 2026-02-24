@@ -33,7 +33,7 @@ import { useState } from "react";
 // ============================================================
 // ⚙️ CONFIGURAÇÃO DO BACKEND — EDITE AQUI
 // ============================================================
-const N8N_WEBHOOK_URL = "https://SEU_N8N.com/webhook/analisador-copy";
+const N8N_WEBHOOK_URL = "https://webhook.merendinhafeliz.com.br/webhook/analisador-copy";
 
 // Token simples anti-flood (configure o mesmo valor no n8n)
 const N8N_WEBHOOK_TOKEN = "SEU_TOKEN_FORTE_AQUI";
@@ -473,7 +473,7 @@ export default function AnalisadorCopy() {
                 <div className="header">
                     <div className="badge">
                         <span className="badge-dot" />
-                        Análise com IA · Gratuito
+                        Análise com IA · X1Bot
                     </div>
                     <h1>
                         Analisador de
